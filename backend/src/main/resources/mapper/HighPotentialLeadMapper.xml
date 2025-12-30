@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hangyin.marketing.mapper.HighPotentialLeadMapper">
+
+    <select id="selectHighPotentialLeadList" resultType="com.hangyin.marketing.entity.HighPotentialLead">
+        SELECT hpl.*, l.customer_name, l.contact_phone
+        FROM high_potential_lead hpl
+        LEFT JOIN `lead` l ON hpl.lead_id = l.id
+        WHERE 1=1
+        <if test="keyword != null and keyword != ''">
+            AND (hpl.user_id LIKE CONCAT('%', #{keyword}, '%')
+            OR l.customer_name LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="status != null and status != ''">
+            AND hpl.status = #{status}
+        </if>
+        ORDER BY hpl.matching_date DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countHighPotentialLeads" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM high_potential_lead hpl
+        LEFT JOIN `lead` l ON hpl.lead_id = l.id
+        WHERE 1=1
+        <if test="keyword != null and keyword != ''">
+            AND (hpl.user_id LIKE CONCAT('%', #{keyword}, '%')
+            OR l.customer_name LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="status != null and status != ''">
+            AND hpl.status = #{status}
+        </if>
+    </select>
+
+</mapper>
+

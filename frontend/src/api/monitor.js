@@ -1,0 +1,17 @@
+import request from './index'
+
+export const getMonitorConfig = () => {
+  return request({
+    url: '/monitor/config',
+    method: 'get'
+  })
+}
+
+export const saveMonitorConfig = (data) => {
+  return request({
+    url: '/monitor/save',
+    method: 'post',
+    data
+  })
+}
+
