@@ -4,6 +4,7 @@ import com.hangyin.marketing.common.PageRequest;
 import com.hangyin.marketing.common.PageResult;
 import com.hangyin.marketing.entity.Lead;
 import com.hangyin.marketing.mapper.LeadMapper;
+import com.hangyin.marketing.service.DataProcessingService;
 import com.hangyin.marketing.service.LeadService;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,9 @@ public class LeadServiceImpl implements LeadService {
     
     @Autowired
     private LeadMapper leadMapper;
+    
+    @Autowired(required = false)
+    private DataProcessingService dataProcessingService;
     
     @Override
     public PageResult<Lead> getLeadList(PageRequest pageRequest, String keyword, String status) {
@@ -55,6 +59,12 @@ public class LeadServiceImpl implements LeadService {
             lead.setStatus("新线索");
         }
         leadMapper.insert(lead);
+        
+        // 新增线索后，异步检查是否为高潜线索（可选）
+        // 如果启用，会在新增线索后立即检查并可能创建高潜线索记录
+        // if (dataProcessingService != null) {
+        //     dataProcessingService.isHighPotentialLead(lead.getId());
+        // }
     }
     
     @Override
@@ -86,6 +96,7 @@ public class LeadServiceImpl implements LeadService {
     @Override
     @Transactional
     public void batchImportLeads(List<Lead> leads) {
+        List<Long> insertedIds = new java.util.ArrayList<>();
         for (Lead lead : leads) {
             if (lead.getLeadNo() == null || lead.getLeadNo().isEmpty()) {
                 lead.setLeadNo("L" + System.currentTimeMillis());
@@ -97,6 +108,17 @@ public class LeadServiceImpl implements LeadService {
                 lead.setStatus("新线索");
             }
             leadMapper.insert(lead);
+            insertedIds.add(lead.getId());
+        }
+        
+        // 批量导入后，自动执行数据加工，筛选高潜线索
+        if (dataProcessingService != null && !insertedIds.isEmpty()) {
+            try {
+                int count = dataProcessingService.batchProcessLeads(insertedIds);
+                log.info("批量导入后自动筛选，共筛选出 {} 条高潜线索", count);
+            } catch (Exception e) {
+                log.error("批量导入后自动筛选失败", e);
+            }
         }
     }
 }

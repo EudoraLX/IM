@@ -36,6 +36,15 @@ mybatis-plus:
   mapper-locations: classpath:mapper/*.xml
   type-aliases-package: com.hangyin.marketing.entity
 
+# 活跃度数据源配置
+activity:
+  data:
+    # 是否启用第三方数据源（true-启用，false-使用模拟数据）
+    enabled: false
+    # 第三方数据源API地址（客户端APP或数据服务地址）
+    api:
+      url: http://localhost:8081/api/activity
+
 # 日志配置
 logging:
   level:

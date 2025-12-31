@@ -42,6 +42,10 @@
         <el-icon><Delete /></el-icon>
         批量删除
       </el-button>
+      <el-button type="success" @click="handleCreateTestData" style="margin-left: 10px">
+        <el-icon><MagicStick /></el-icon>
+        创建测试数据
+      </el-button>
     </div>
 
     <el-table
@@ -136,6 +140,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getLeadList, addLead, updateLead, deleteLead, batchDeleteLeads } from '../api/lead'
+import { setupTestData } from '../api/test'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -254,6 +259,47 @@ const handleImport = () => {
 
 const handleExport = () => {
   ElMessage.info('导出功能待实现')
+}
+
+const handleCreateTestData = async () => {
+  try {
+    await ElMessageBox.confirm(
+      '将创建20条测试线索（10条高潜 + 10条普通），并自动执行数据加工筛选高潜线索。是否继续？',
+      '创建测试数据',
+      {
+        type: 'info',
+        confirmButtonText: '确定',
+        cancelButtonText: '取消'
+      }
+    )
+    
+    const loadingMessage = ElMessage({
+      message: '正在创建测试数据...',
+      type: 'info',
+      duration: 0
+    })
+    
+    try {
+      const res = await setupTestData(20)
+      loadingMessage.close()
+      if (res.code === 200) {
+        ElMessage.success(res.message || '测试数据创建成功！')
+        // 刷新列表
+        loadData()
+        // 提示查看高潜线索
+        setTimeout(() => {
+          ElMessage.info('请在"高潜线索营销"页面查看筛选出的高潜线索')
+        }, 1000)
+      }
+    } catch (error) {
+      loadingMessage.close()
+      throw error
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('创建测试数据失败: ' + (error.message || '未知错误'))
+    }
+  }
 }
 
 const handleSubmit = async () => {

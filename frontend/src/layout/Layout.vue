@@ -29,6 +29,10 @@
           <el-icon><Promotion /></el-icon>
           <span>高潜线索营销</span>
         </el-menu-item>
+        <el-menu-item index="/testFlow">
+          <el-icon><Connection /></el-icon>
+          <span>完整测试流程</span>
+        </el-menu-item>
       </el-menu>
       <div class="sidebar-footer">
         <p>v2.5.11 2025.12.23更新</p>

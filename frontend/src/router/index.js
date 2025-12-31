@@ -30,6 +30,12 @@ const routes = [
         name: 'HighPotentialLead',
         component: () => import('../views/HighPotentialLead.vue'),
         meta: { title: '高潜线索营销' }
+      },
+      {
+        path: '/testFlow',
+        name: 'TestFlow',
+        component: () => import('../views/TestFlow.vue'),
+        meta: { title: '完整测试流程' }
       }
     ]
   }
