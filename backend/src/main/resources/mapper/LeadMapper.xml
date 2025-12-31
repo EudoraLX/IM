@@ -29,5 +29,10 @@
         </if>
     </select>
 
+    <!-- 物理删除 -->
+    <delete id="physicalDeleteById">
+        DELETE FROM `lead` WHERE id = #{id}
+    </delete>
+
 </mapper>
 

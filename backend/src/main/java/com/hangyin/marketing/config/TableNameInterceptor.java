@@ -74,7 +74,7 @@ public class TableNameInterceptor implements Interceptor {
                 "(?i)\\bJOIN\\s+" + keyword + "\\b",           // JOIN lead
                 "(?i)\\bUPDATE\\s+" + keyword + "\\b",         // UPDATE lead
                 "(?i)\\bTABLE\\s+" + keyword + "\\b",          // TABLE lead
-                "(?i)\\bDELETE\\s+FROM\\s+" + keyword + "\\b"  // DELETE FROM lead
+                "(?i)\\bDELETE\\s+FROM\\s+" + keyword + "\\b"  // DELETE FROM lead WHERE ...
             };
             
             String[] replacements = {

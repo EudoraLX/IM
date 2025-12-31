@@ -25,5 +25,10 @@ public interface LeadMapper extends BaseMapper<Lead> {
      */
     Long countLeads(@Param("keyword") String keyword, 
                     @Param("status") String status);
+    
+    /**
+     * 物理删除线索（真正从数据库删除）
+     */
+    void physicalDeleteById(@Param("id") Long id);
 }
 

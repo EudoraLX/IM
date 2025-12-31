@@ -67,11 +67,12 @@ public class LeadServiceImpl implements LeadService {
     @Override
     @Transactional
     public void deleteLead(Long id) {
-        Lead lead = new Lead();
-        lead.setId(id);
-        lead.setDeleted(1);
-        lead.setUpdateTime(LocalDateTime.now());
-        leadMapper.updateById(lead);
+        // 使用物理删除（真正从数据库删除数据）
+        // 注意：这会真正删除数据，无法恢复
+        leadMapper.physicalDeleteById(id);
+        
+        // 如果使用逻辑删除（数据可恢复），使用下面的代码：
+        // leadMapper.deleteById(id);
     }
     
     @Override
