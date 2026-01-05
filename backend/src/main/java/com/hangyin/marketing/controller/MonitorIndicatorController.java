@@ -7,6 +7,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 /**
  * 监控指标管理控制器
  */
@@ -36,5 +40,13 @@ public class MonitorIndicatorController {
         monitorIndicatorService.saveOrUpdateConfig(indicator);
         return Result.success();
     }
+    
+    /**
+     * 获取实时监控统计数据（用于图表展示）
+     */
+    @GetMapping("/statistics")
+    public Result<Map<String, Object>> getStatistics() {
+        Map<String, Object> statistics = monitorIndicatorService.getStatistics();
+        return Result.success(statistics);
+    }
 }
-

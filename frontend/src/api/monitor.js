@@ -15,3 +15,10 @@ export const saveMonitorConfig = (data) => {
   })
 }
 
+export const getMonitorStatistics = () => {
+  return request({
+    url: '/monitor/statistics',
+    method: 'get'
+  })
+}
+

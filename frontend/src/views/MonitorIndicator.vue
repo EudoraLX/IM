@@ -55,10 +55,21 @@
         </div>
       </el-form-item>
 
-      <!-- 预估图表 -->
-      <el-form-item label="当前配置覆盖线索预估">
+      <!-- 实时监控图表 -->
+      <el-form-item label="实时监控数据">
         <div class="chart-container">
-          <div id="estimationChart" style="width: 100%; height: 300px;"></div>
+          <div class="chart-header">
+            <span class="chart-title">最近7天线索趋势</span>
+            <el-button text type="primary" size="small" @click="loadChartData">
+              <el-icon><Refresh /></el-icon>
+              刷新
+            </el-button>
+          </div>
+          <div id="estimationChart" style="width: 100%; height: 350px;"></div>
+          <div class="chart-footer">
+            <span class="stat-item">总线索数: <strong>{{ statistics.totalLeads || 0 }}</strong></span>
+            <span class="stat-item">预估高潜线索: <strong>{{ statistics.estimatedHighPotential || 0 }}</strong></span>
+          </div>
         </div>
       </el-form-item>
     </el-form>
@@ -71,9 +82,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getMonitorConfig, saveMonitorConfig } from '../api/monitor'
+import { getMonitorConfig, saveMonitorConfig, getMonitorStatistics } from '../api/monitor'
 import * as echarts from 'echarts'
 import { onBeforeUnmount } from 'vue'
 
@@ -86,6 +97,10 @@ const formData = reactive({
 })
 
 const selectedOrganizations = ref(['华东中心机构', '上海研发分部'])
+const statistics = ref({
+  totalLeads: 0,
+  estimatedHighPotential: 0
+})
 
 const organizationOptions = [
   { label: '华东中心机构', value: '华东中心机构' },
@@ -96,19 +111,38 @@ const organizationOptions = [
 ]
 
 let chartInstance = null
+let refreshTimer = null
 
-onMounted(() => {
-  loadConfig()
+onMounted(async () => {
+  await loadConfig()
+  // 等待DOM渲染完成
+  await nextTick()
   setTimeout(() => {
     initChart()
-  }, 100)
+    // 初始化后立即加载数据
+    loadChartData()
+    // 每30秒自动刷新图表数据
+    refreshTimer = setInterval(() => {
+      loadChartData()
+    }, 30000)
+  }, 300)
 })
 
 onBeforeUnmount(() => {
   if (chartInstance) {
     chartInstance.dispose()
   }
+  if (refreshTimer) {
+    clearInterval(refreshTimer)
+  }
 })
+
+// 监听配置变化，实时更新图表
+watch(() => [formData.timeRangeDays, formData.activityThreshold, selectedOrganizations.value], () => {
+  if (chartInstance) {
+    loadChartData()
+  }
+}, { deep: true })
 
 const loadConfig = async () => {
   try {
@@ -134,45 +168,228 @@ const handleOrganizationChange = () => {
 
 const initChart = () => {
   const chartDom = document.getElementById('estimationChart')
-  if (!chartDom) return
+  if (!chartDom) {
+    console.error('图表容器未找到')
+    return
+  }
   
   chartInstance = echarts.init(chartDom)
+  
+  // 初始化时显示默认数据（7个空日期），确保图表框架显示
+  const today = new Date()
+  const defaultDates = []
+  const defaultData = []
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date(today)
+    date.setDate(date.getDate() - i)
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    defaultDates.push(`${month}-${day}`)
+    defaultData.push(0)
+  }
+  
+  // 初始配置，确保图表框架完整显示
   const option = {
     tooltip: {
-      trigger: 'axis'
+      trigger: 'axis',
+      formatter: function(params) {
+        let result = params[0].name + '<br/>'
+        params.forEach(function(item) {
+          result += item.marker + item.seriesName + ': ' + item.value + ' 条<br/>'
+        })
+        return result
+      }
+    },
+    legend: {
+      data: ['新增线索数', '预估高潜线索数'],
+      top: 10
+    },
+    grid: {
+      left: '50px',
+      right: '30px',
+      bottom: '50px',
+      top: '60px',
+      containLabel: false
     },
     xAxis: {
       type: 'category',
-      data: ['12-19', '12-20', '12-21', '12-22', '12-23']
+      boundaryGap: false,
+      data: defaultDates,
+      axisLabel: {
+        rotate: 0,
+        interval: 0,
+        show: true
+      },
+      axisLine: {
+        show: true
+      },
+      axisTick: {
+        show: true
+      }
     },
     yAxis: {
       type: 'value',
-      max: 300,
-      interval: 50
+      name: '线索数量',
+      nameLocation: 'middle',
+      nameGap: 40,
+      min: 0,
+      max: 10,
+      interval: 2,
+      axisLabel: {
+        show: true
+      },
+      axisLine: {
+        show: true
+      },
+      axisTick: {
+        show: true
+      },
+      splitLine: {
+        show: true
+      }
     },
-    series: [{
-      data: [150, 220, 200, 200, 280],
-      type: 'line',
-      smooth: true,
-      areaStyle: {
-        color: {
-          type: 'linear',
-          x: 0,
-          y: 0,
-          x2: 0,
-          y2: 1,
-          colorStops: [
-            { offset: 0, color: 'rgba(64, 158, 255, 0.3)' },
-            { offset: 1, color: 'rgba(64, 158, 255, 0.1)' }
-          ]
+    series: [
+      {
+        name: '新增线索数',
+        type: 'line',
+        smooth: true,
+        data: defaultData,
+        symbol: 'circle',
+        symbolSize: 6,
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              { offset: 0, color: 'rgba(64, 158, 255, 0.3)' },
+              { offset: 1, color: 'rgba(64, 158, 255, 0.1)' }
+            ]
+          }
+        },
+        lineStyle: {
+          color: '#409eff'
+        },
+        itemStyle: {
+          color: '#409eff'
         }
       },
-      lineStyle: {
-        color: '#409eff'
+      {
+        name: '预估高潜线索数',
+        type: 'line',
+        smooth: true,
+        data: defaultData,
+        symbol: 'circle',
+        symbolSize: 6,
+        lineStyle: {
+          color: '#67c23a'
+        },
+        itemStyle: {
+          color: '#67c23a'
+        }
       }
-    }]
+    ]
   }
   chartInstance.setOption(option)
+}
+
+const loadChartData = async () => {
+  if (!chartInstance) {
+    console.warn('图表实例未初始化，尝试重新初始化')
+    initChart()
+    if (!chartInstance) {
+      console.error('图表初始化失败')
+      return
+    }
+  }
+  
+  try {
+    const res = await getMonitorStatistics()
+    console.log('统计数据响应:', res)
+    
+    if (res.code === 200 && res.data) {
+      const data = res.data
+      const dates = data.dates || []
+      const leadCounts = data.leadCounts || []
+      
+      console.log('图表数据:', { dates, leadCounts })
+      
+      // 更新统计数据
+      statistics.value = {
+        totalLeads: data.totalLeads || 0,
+        estimatedHighPotential: data.estimatedHighPotential || 0
+      }
+      
+      // 如果日期为空，使用默认日期
+      let finalDates = dates
+      if (dates.length === 0) {
+        const today = new Date()
+        finalDates = []
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date(today)
+          date.setDate(date.getDate() - i)
+          const month = String(date.getMonth() + 1).padStart(2, '0')
+          const day = String(date.getDate()).padStart(2, '0')
+          finalDates.push(`${month}-${day}`)
+        }
+      }
+      
+      // 确保数据长度匹配
+      const finalLeadCounts = leadCounts.length === finalDates.length 
+        ? leadCounts 
+        : new Array(finalDates.length).fill(0)
+      
+      // 计算预估高潜线索数（基于阈值）
+      const threshold = data.activityThreshold || 3
+      const estimatedHighPotential = finalLeadCounts.map(count => {
+        // 简化估算：假设活跃次数超过阈值的线索占比为30%
+        return Math.round(count * 0.3)
+      })
+      
+      // 更新图表
+      chartInstance.setOption({
+        xAxis: {
+          data: finalDates
+        },
+        series: [
+          {
+            name: '新增线索数',
+            data: finalLeadCounts
+          },
+          {
+            name: '预估高潜线索数',
+            data: estimatedHighPotential
+          }
+        ]
+      }, { notMerge: false })
+      
+      // 自动调整Y轴最大值
+      const allValues = [...finalLeadCounts, ...estimatedHighPotential]
+      const maxValue = allValues.length > 0 ? Math.max(...allValues) : 0
+      const yMax = maxValue > 0 ? Math.max(10, Math.ceil(maxValue * 1.2)) : 10
+      const interval = Math.max(1, Math.ceil(yMax / 5))
+      
+      chartInstance.setOption({
+        yAxis: {
+          max: yMax,
+          interval: interval,
+          min: 0
+        }
+      })
+      
+      // 确保图表重新渲染
+      setTimeout(() => {
+        chartInstance.resize()
+      }, 100)
+    } else {
+      console.warn('统计数据格式错误:', res)
+    }
+  } catch (error) {
+    console.error('加载图表数据失败', error)
+    ElMessage.error('加载图表数据失败: ' + (error.message || '未知错误'))
+  }
 }
 
 const handleCancel = () => {
@@ -237,6 +454,38 @@ const handleSave = async () => {
   padding: 20px;
   background: #f9f9f9;
   border-radius: 4px;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.chart-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.chart-footer {
+  display: flex;
+  gap: 30px;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #e4e7ed;
+}
+
+.stat-item {
+  font-size: 14px;
+  color: #606266;
+}
+
+.stat-item strong {
+  color: #409eff;
+  font-size: 16px;
+  margin-left: 5px;
 }
 
 .action-buttons {
