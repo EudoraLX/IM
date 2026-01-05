@@ -153,6 +153,29 @@
         <el-button type="primary" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 查看详情对话框 -->
+    <el-dialog
+      v-model="viewDialogVisible"
+      title="线索详情"
+      width="600px"
+    >
+      <el-descriptions :column="2" border v-if="viewData">
+        <el-descriptions-item label="线索编号">{{ viewData.leadNo || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="客户姓名">{{ viewData.customerName || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="联系电话">{{ viewData.contactPhone || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="来源渠道">{{ viewData.sourceChannel || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="getStatusType(viewData.status)">{{ viewData.status || '-' }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="创建时间">{{ formatDateTime(viewData.createTime) }}</el-descriptions-item>
+        <el-descriptions-item label="更新时间" :span="2">{{ formatDateTime(viewData.updateTime) }}</el-descriptions-item>
+      </el-descriptions>
+      <template #footer>
+        <el-button @click="viewDialogVisible = false">关闭</el-button>
+        <el-button type="primary" @click="handleEditFromView">编辑</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -172,6 +195,8 @@ const dialogVisible = ref(false)
 const dialogTitle = ref('新增线索')
 const formRef = ref(null)
 const isEdit = ref(false)
+const viewDialogVisible = ref(false)
+const viewData = ref(null)
 
 const pagination = reactive({
   current: 1,
@@ -269,7 +294,32 @@ const handleEdit = (row) => {
 }
 
 const handleView = (row) => {
-  ElMessage.info('查看功能待实现')
+  viewData.value = { ...row }
+  viewDialogVisible.value = true
+}
+
+const handleEditFromView = () => {
+  if (viewData.value) {
+    viewDialogVisible.value = false
+    handleEdit(viewData.value)
+  }
+}
+
+// 格式化日期时间
+const formatDateTime = (dateTime) => {
+  if (!dateTime) return '-'
+  try {
+    const date = new Date(dateTime)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    const seconds = String(date.getSeconds()).padStart(2, '0')
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+  } catch (e) {
+    return dateTime
+  }
 }
 
 const handleDelete = async (row) => {
