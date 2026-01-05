@@ -23,21 +23,30 @@
       <!-- 活跃机构选择 -->
       <el-form-item label="活跃机构选择">
         <div class="form-item-content">
-          <el-select
-            v-model="selectedOrganizations"
-            multiple
-            placeholder="请选择活跃机构"
-            style="width: 100%"
-            @change="handleOrganizationChange"
-          >
-            <el-option
-              v-for="org in organizationOptions"
-              :key="org.value"
-              :label="org.label"
-              :value="org.value"
-            />
-          </el-select>
-          <p class="description">仅监控所选机构下属产生的交互线索</p>
+          <div class="org-select-wrapper">
+            <el-select
+              v-model="selectedOrganizations"
+              multiple
+              filterable
+              allow-create
+              default-first-option
+              placeholder="请选择或输入活跃机构"
+              style="width: 100%"
+              @change="handleOrganizationChange"
+            >
+              <el-option
+                v-for="org in organizationOptions"
+                :key="org.value"
+                :label="org.label"
+                :value="org.value"
+              />
+            </el-select>
+            <el-button type="primary" @click="showOrgManageDialog = true" style="margin-left: 10px">
+              <el-icon><Setting /></el-icon>
+              管理机构
+            </el-button>
+          </div>
+          <p class="description">仅监控所选机构下属产生的交互线索。可以输入新的机构名称</p>
         </div>
       </el-form-item>
 
@@ -78,13 +87,78 @@
       <el-button @click="handleCancel">取消配置</el-button>
       <el-button type="primary" @click="handleSave">提交保存</el-button>
     </div>
+
+    <!-- 机构管理对话框 -->
+    <el-dialog
+      v-model="showOrgManageDialog"
+      title="机构管理"
+      width="600px"
+      @close="handleOrgDialogClose"
+    >
+      <div class="org-manage-content">
+        <div class="org-manage-header">
+          <el-input
+            v-model="orgSearchKeyword"
+            placeholder="搜索机构..."
+            clearable
+            style="width: 200px"
+          >
+            <template #prefix>
+              <el-icon><Search /></el-icon>
+            </template>
+          </el-input>
+          <el-button type="primary" @click="handleAddOrg">
+            <el-icon><Plus /></el-icon>
+            新增机构
+          </el-button>
+        </div>
+        
+        <el-table :data="filteredOrganizationOptions" style="width: 100%; margin-top: 15px" max-height="400">
+          <el-table-column prop="label" label="机构名称" />
+          <el-table-column label="操作" width="150" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="handleEditOrg(row)">
+                <el-icon><Edit /></el-icon>
+                编辑
+              </el-button>
+              <el-button link type="danger" @click="handleDeleteOrg(row)">
+                <el-icon><Delete /></el-icon>
+                删除
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+      
+      <template #footer>
+        <el-button @click="showOrgManageDialog = false">关闭</el-button>
+        <el-button type="primary" @click="handleSaveOrganizations">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 新增/编辑机构对话框 -->
+    <el-dialog
+      v-model="showOrgEditDialog"
+      :title="orgEditMode === 'add' ? '新增机构' : '编辑机构'"
+      width="400px"
+    >
+      <el-form :model="orgEditForm" label-width="100px">
+        <el-form-item label="机构名称" required>
+          <el-input v-model="orgEditForm.name" placeholder="请输入机构名称" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showOrgEditDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleSaveOrg">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch, nextTick } from 'vue'
-import { ElMessage } from 'element-plus'
-import { getMonitorConfig, saveMonitorConfig, getMonitorStatistics } from '../api/monitor'
+import { ref, reactive, onMounted, watch, nextTick, computed } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { getMonitorConfig, saveMonitorConfig, getMonitorStatistics, getOrganizations } from '../api/monitor'
 import * as echarts from 'echarts'
 import { onBeforeUnmount } from 'vue'
 
@@ -102,19 +176,42 @@ const statistics = ref({
   estimatedHighPotential: 0
 })
 
-const organizationOptions = [
+const organizationOptions = ref([
   { label: '华东中心机构', value: '华东中心机构' },
   { label: '上海研发分部', value: '上海研发分部' },
   { label: '北京总部', value: '北京总部' },
   { label: '深圳分公司', value: '深圳分公司' },
   { label: '广州分公司', value: '广州分公司' }
-]
+])
+
+// 机构管理相关
+const showOrgManageDialog = ref(false)
+const showOrgEditDialog = ref(false)
+const orgSearchKeyword = ref('')
+const orgEditMode = ref('add') // 'add' 或 'edit'
+const orgEditForm = reactive({
+  name: '',
+  index: -1
+})
+
+// 过滤后的机构列表（用于搜索）
+const filteredOrganizationOptions = computed(() => {
+  if (!orgSearchKeyword.value) {
+    return organizationOptions.value
+  }
+  const keyword = orgSearchKeyword.value.toLowerCase()
+  return organizationOptions.value.filter(org => 
+    org.label.toLowerCase().includes(keyword) || 
+    org.value.toLowerCase().includes(keyword)
+  )
+})
 
 let chartInstance = null
 let refreshTimer = null
 
 onMounted(async () => {
   await loadConfig()
+  await loadOrganizations()
   // 等待DOM渲染完成
   await nextTick()
   setTimeout(() => {
@@ -164,6 +261,135 @@ const loadConfig = async () => {
 
 const handleOrganizationChange = () => {
   formData.activeOrganizations = JSON.stringify(selectedOrganizations.value)
+}
+
+// 机构管理相关方法
+const handleAddOrg = () => {
+  orgEditMode.value = 'add'
+  orgEditForm.name = ''
+  orgEditForm.index = -1
+  showOrgEditDialog.value = true
+}
+
+const handleEditOrg = (org) => {
+  orgEditMode.value = 'edit'
+  orgEditForm.name = org.label
+  // 找到在原始列表中的索引
+  const index = organizationOptions.value.findIndex(o => o.value === org.value)
+  orgEditForm.index = index
+  showOrgEditDialog.value = true
+}
+
+const handleDeleteOrg = async (org) => {
+  try {
+    await ElMessageBox.confirm('确定要删除这个机构吗？', '提示', {
+      type: 'warning'
+    })
+    
+    // 找到在原始列表中的索引
+    const index = organizationOptions.value.findIndex(o => o.value === org.value)
+    if (index === -1) {
+      ElMessage.error('机构不存在')
+      return
+    }
+    
+    // 如果该机构已被选中，从选中列表中移除
+    const selectedIndex = selectedOrganizations.value.indexOf(org.value)
+    if (selectedIndex > -1) {
+      selectedOrganizations.value.splice(selectedIndex, 1)
+      handleOrganizationChange()
+    }
+    
+    // 从机构列表中删除
+    organizationOptions.value.splice(index, 1)
+    ElMessage.success('删除成功')
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('删除失败')
+    }
+  }
+}
+
+const handleSaveOrg = () => {
+  if (!orgEditForm.name || orgEditForm.name.trim() === '') {
+    ElMessage.warning('请输入机构名称')
+    return
+  }
+  
+  const name = orgEditForm.name.trim()
+  
+  if (orgEditMode.value === 'add') {
+    // 检查是否已存在
+    const exists = organizationOptions.value.some(org => org.value === name)
+    if (exists) {
+      ElMessage.warning('该机构已存在')
+      return
+    }
+    // 新增
+    organizationOptions.value.push({
+      label: name,
+      value: name
+    })
+    ElMessage.success('新增成功')
+  } else {
+    // 编辑
+    if (orgEditForm.index >= 0 && orgEditForm.index < organizationOptions.value.length) {
+      const oldValue = organizationOptions.value[orgEditForm.index].value
+      const newValue = name
+      
+      // 更新机构选项
+      organizationOptions.value[orgEditForm.index] = {
+        label: name,
+        value: name
+      }
+      
+      // 如果该机构已被选中，更新选中列表
+      const selectedIndex = selectedOrganizations.value.indexOf(oldValue)
+      if (selectedIndex > -1) {
+        selectedOrganizations.value[selectedIndex] = newValue
+        handleOrganizationChange()
+      }
+      
+      ElMessage.success('编辑成功')
+    }
+  }
+  
+  showOrgEditDialog.value = false
+}
+
+const handleSaveOrganizations = () => {
+  // 机构列表已实时更新，这里只需要关闭对话框
+  showOrgManageDialog.value = false
+  ElMessage.success('机构列表已更新')
+}
+
+const handleOrgDialogClose = () => {
+  orgSearchKeyword.value = ''
+}
+
+// 加载机构列表（从数据库）
+const loadOrganizations = async () => {
+  try {
+    const res = await getOrganizations()
+    if (res.code === 200 && res.data) {
+      // 将机构列表转换为选项格式
+      const dbOrgs = res.data.map(org => ({
+        label: org,
+        value: org
+      }))
+      
+      // 合并数据库中的机构和现有机构（去重）
+      const existingValues = new Set(organizationOptions.value.map(org => org.value))
+      dbOrgs.forEach(org => {
+        if (!existingValues.has(org.value)) {
+          organizationOptions.value.push(org)
+        }
+      })
+    }
+  } catch (error) {
+    console.error('加载机构列表失败', error)
+    // 失败时使用默认列表
+  }
 }
 
 const initChart = () => {
@@ -486,6 +712,22 @@ const handleSave = async () => {
   color: #409eff;
   font-size: 16px;
   margin-left: 5px;
+}
+
+.org-select-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.org-manage-content {
+  padding: 10px 0;
+}
+
+.org-manage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .action-buttons {

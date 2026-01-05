@@ -111,12 +111,32 @@
           <el-input v-model="formData.contactPhone" />
         </el-form-item>
         <el-form-item label="来源渠道" prop="sourceChannel">
-          <el-select v-model="formData.sourceChannel" placeholder="请选择">
-            <el-option label="官网预约" value="官网预约" />
-            <el-option label="抖音推广" value="抖音推广" />
-            <el-option label="线下活动" value="线下活动" />
-            <el-option label="熟人转介绍" value="熟人转介绍" />
-            <el-option label="搜索引擎" value="搜索引擎" />
+          <el-select 
+            v-model="formData.sourceChannel" 
+            placeholder="请选择或输入渠道名称"
+            filterable
+            allow-create
+            default-first-option
+            style="width: 100%"
+          >
+            <el-option-group label="机构渠道">
+              <el-option
+                v-for="org in organizationOptions"
+                :key="org"
+                :label="org"
+                :value="org"
+              />
+            </el-option-group>
+            <el-option-group label="其他渠道">
+              <el-option label="官网预约" value="官网预约" />
+              <el-option label="抖音推广" value="抖音推广" />
+              <el-option label="线下活动" value="线下活动" />
+              <el-option label="熟人转介绍" value="熟人转介绍" />
+              <el-option label="搜索引擎" value="搜索引擎" />
+              <el-option label="微信推广" value="微信推广" />
+              <el-option label="电话咨询" value="电话咨询" />
+              <el-option label="其他" value="其他" />
+            </el-option-group>
           </el-select>
         </el-form-item>
         <el-form-item label="状态" prop="status">
@@ -141,6 +161,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getLeadList, addLead, updateLead, deleteLead, batchDeleteLeads } from '../api/lead'
 import { setupTestData } from '../api/test'
+import { getOrganizations } from '../api/monitor'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -166,14 +187,47 @@ const formData = reactive({
   status: '新线索'
 })
 
+// 机构选项列表
+const organizationOptions = ref([])
+
 const rules = {
   customerName: [{ required: true, message: '请输入客户姓名', trigger: 'blur' }],
   contactPhone: [{ required: true, message: '请输入联系电话', trigger: 'blur' }]
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await loadOrganizations()
   loadData()
 })
+
+// 加载机构列表
+const loadOrganizations = async () => {
+  try {
+    const res = await getOrganizations()
+    if (res.code === 200 && res.data) {
+      organizationOptions.value = res.data
+    } else {
+      // 如果获取失败，使用默认机构列表
+      organizationOptions.value = [
+        '华东中心机构',
+        '上海研发分部',
+        '北京总部',
+        '深圳分公司',
+        '广州分公司'
+      ]
+    }
+  } catch (error) {
+    console.error('加载机构列表失败', error)
+    // 失败时使用默认列表
+    organizationOptions.value = [
+      '华东中心机构',
+      '上海研发分部',
+      '北京总部',
+      '深圳分公司',
+      '广州分公司'
+    ]
+  }
+}
 
 const loadData = async () => {
   loading.value = true

@@ -22,3 +22,10 @@ export const getMonitorStatistics = () => {
   })
 }
 
+export const getOrganizations = () => {
+  return request({
+    url: '/monitor/organizations',
+    method: 'get'
+  })
+}
+
