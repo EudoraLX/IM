@@ -32,5 +32,15 @@
         </if>
     </select>
 
+    <select id="countTodayNewLeads" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM high_potential_lead
+        WHERE DATE(create_time) = CURDATE()
+    </select>
+
+    <select id="countYesterdayTotalLeads" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM high_potential_lead
+        WHERE DATE(create_time) &lt;= DATE_SUB(CURDATE(), INTERVAL 1 DAY)
+    </select>
+
 </mapper>
 

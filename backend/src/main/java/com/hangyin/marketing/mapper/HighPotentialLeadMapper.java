@@ -25,5 +25,15 @@ public interface HighPotentialLeadMapper extends BaseMapper<HighPotentialLead> {
      */
     Long countHighPotentialLeads(@Param("keyword") String keyword,
                                   @Param("status") String status);
+    
+    /**
+     * 统计今日新增的高潜线索数量
+     */
+    Long countTodayNewLeads();
+    
+    /**
+     * 统计昨日结束时的总记录数（用于计算较昨日变化）
+     */
+    Long countYesterdayTotalLeads();
 }
 

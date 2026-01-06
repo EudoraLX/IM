@@ -16,11 +16,11 @@
       <el-card class="stat-card">
         <div class="stat-content">
           <div class="stat-info">
-            <div class="stat-value">{{ statistics.totalMatched || 125 }}</div>
+            <div class="stat-value">{{ statistics.totalMatched ?? 0 }}</div>
             <div class="stat-label">命中用户总数</div>
-            <div class="stat-trend">
+            <div class="stat-trend" v-if="statistics.yesterdayChangePercentage !== undefined">
               <el-icon><ArrowUp /></el-icon>
-              <span>较昨日 +4.2%</span>
+              <span>较昨日 {{ statistics.yesterdayChangePercentage >= 0 ? '+' : '' }}{{ statistics.yesterdayChangePercentage }}%</span>
             </div>
           </div>
           <el-icon class="stat-icon" :size="40"><User /></el-icon>
@@ -30,7 +30,7 @@
       <el-card class="stat-card">
         <div class="stat-content">
           <div class="stat-info">
-            <div class="stat-value">{{ statistics.todayNew || 8 }}</div>
+            <div class="stat-value">{{ statistics.todayNew ?? 0 }}</div>
             <div class="stat-label">今日新增线索</div>
             <div class="stat-desc">实时更新中</div>
           </div>
@@ -41,9 +41,9 @@
       <el-card class="stat-card">
         <div class="stat-content">
           <div class="stat-info">
-            <div class="stat-value">{{ statistics.pendingCount || 42 }}</div>
+            <div class="stat-value">{{ statistics.pendingCount ?? 0 }}</div>
             <div class="stat-label">待营销处理</div>
-            <div class="stat-desc">占总量约 33.6%</div>
+            <div class="stat-desc" v-if="statistics.pendingPercentage !== undefined">占总量约 {{ statistics.pendingPercentage }}%</div>
           </div>
           <el-icon class="stat-icon orange" :size="40"><Clock /></el-icon>
         </div>
@@ -52,7 +52,7 @@
       <el-card class="stat-card">
         <div class="stat-content">
           <div class="stat-info">
-            <div class="stat-value">{{ statistics.conversionRate || 18.5 }}%</div>
+            <div class="stat-value">{{ statistics.conversionRate ?? 0 }}%</div>
             <div class="stat-label">营销转化成功率</div>
             <div class="stat-desc">本月累计数据</div>
           </div>
@@ -102,7 +102,7 @@
       @selection-change="handleSelectionChange"
       class="lead-table"
     >
-      <el-table-column type="selection" width="55" />
+      <el-table-column type="selection" width="55" :selectable="checkSelectable" />
       <el-table-column prop="customerName" label="客户姓名" width="150">
         <template #default="{ row }">
           {{ row.customerName || row.userId || '-' }}
@@ -125,9 +125,23 @@
           <el-tag :type="getStatusType(row.status)">{{ row.status }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="250" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="handleContact(row)">
+          <el-button link type="primary" @click="handleContact(row)" v-if="row.status === '待营销处理'">
+            {{ getActionText(row.status) }}
+          </el-button>
+          <el-dropdown @command="(status) => handleStatusChange(row, status)" v-else-if="row.status === '营销进行中'">
+            <el-button link type="primary">
+              更新状态 ↓
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="营销已转化">标记为已转化</el-dropdown-item>
+                <el-dropdown-item command="已联系失效">标记为已失效</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <el-button link type="primary" @click="handleContact(row)" v-else>
             {{ getActionText(row.status) }}
           </el-button>
           <el-button link type="danger" @click="handleDelete(row)">
@@ -175,7 +189,9 @@ const statistics = reactive({
   totalMatched: 0,
   todayNew: 0,
   pendingCount: 0,
-  conversionRate: 0
+  conversionRate: 0,
+  pendingPercentage: 0,
+  yesterdayChangePercentage: 0
 })
 
 const pagination = reactive({
@@ -280,10 +296,28 @@ const handleBatchSms = async () => {
 const handleContact = async (row) => {
   if (row.status === '待营销处理') {
     await updateLeadStatus(row.id, '营销进行中')
-    ElMessage.success('状态已更新')
+    ElMessage.success('状态已更新为：营销进行中')
     loadData()
+    loadStatistics()
+  } else if (row.status === '已联系失效') {
+    // 再次激活，将状态改回待营销处理
+    await updateLeadStatus(row.id, '待营销处理')
+    ElMessage.success('线索已重新激活')
+    loadData()
+    loadStatistics()
   } else {
     ElMessage.info('该线索已处理')
+  }
+}
+
+const handleStatusChange = async (row, newStatus) => {
+  try {
+    await updateLeadStatus(row.id, newStatus)
+    ElMessage.success(`状态已更新为：${newStatus}`)
+    loadData()
+    loadStatistics()
+  } catch (error) {
+    ElMessage.error('状态更新失败')
   }
 }
 
@@ -326,6 +360,11 @@ const handleBatchDelete = async () => {
 
 const handleSelectionChange = (selection) => {
   selectedIds.value = selection.map(item => item.id)
+}
+
+// 只允许选择"待营销处理"状态的线索进行批量操作
+const checkSelectable = (row) => {
+  return row.status === '待营销处理'
 }
 
 const handleSizeChange = () => {
