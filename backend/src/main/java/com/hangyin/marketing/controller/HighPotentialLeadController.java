@@ -75,5 +75,23 @@ public class HighPotentialLeadController {
         highPotentialLeadService.updateLeadStatus(id, status);
         return Result.success();
     }
+    
+    /**
+     * 删除高潜线索
+     */
+    @DeleteMapping("/{id}")
+    public Result<Void> deleteHighPotentialLead(@PathVariable Long id) {
+        highPotentialLeadService.deleteHighPotentialLead(id);
+        return Result.success();
+    }
+    
+    /**
+     * 批量删除高潜线索
+     */
+    @PostMapping("/batchDelete")
+    public Result<Void> batchDeleteHighPotentialLeads(@RequestBody List<Long> ids) {
+        highPotentialLeadService.batchDeleteHighPotentialLeads(ids);
+        return Result.success();
+    }
 }
 

@@ -1,6 +1,7 @@
 package com.hangyin.marketing.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -64,5 +65,17 @@ public class HighPotentialLead {
      * 更新时间
      */
     private LocalDateTime updateTime;
+    
+    /**
+     * 客户姓名（从lead表关联查询，不映射到数据库）
+     */
+    @TableField(exist = false)
+    private String customerName;
+    
+    /**
+     * 联系电话（从lead表关联查询，不映射到数据库）
+     */
+    @TableField(exist = false)
+    private String contactPhone;
 }
 

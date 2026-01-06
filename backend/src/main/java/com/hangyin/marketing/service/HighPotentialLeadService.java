@@ -36,5 +36,15 @@ public interface HighPotentialLeadService {
      * 更新线索状态
      */
     void updateLeadStatus(Long id, String status);
+    
+    /**
+     * 删除高潜线索
+     */
+    void deleteHighPotentialLead(Long id);
+    
+    /**
+     * 批量删除高潜线索
+     */
+    void batchDeleteHighPotentialLeads(List<Long> ids);
 }
 

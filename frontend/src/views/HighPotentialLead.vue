@@ -71,10 +71,14 @@
         <el-icon><Message /></el-icon>
         批量发送短信
       </el-button>
+      <el-button type="danger" size="large" :disabled="selectedIds.length === 0" @click="handleBatchDelete">
+        <el-icon><Delete /></el-icon>
+        批量删除
+      </el-button>
       <div class="search-actions">
         <el-input
           v-model="searchKeyword"
-          placeholder="搜索用户ID/姓名"
+          placeholder="搜索客户姓名/电话"
           class="search-input"
           clearable
           @clear="handleSearch"
@@ -99,9 +103,14 @@
       class="lead-table"
     >
       <el-table-column type="selection" width="55" />
-      <el-table-column prop="userId" label="用户ID/姓名" width="150">
+      <el-table-column prop="customerName" label="客户姓名" width="150">
         <template #default="{ row }">
-          {{ row.userId || row.customerName }}
+          {{ row.customerName || row.userId || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="contactPhone" label="联系电话" width="150">
+        <template #default="{ row }">
+          {{ row.contactPhone || '-' }}
         </template>
       </el-table-column>
       <el-table-column prop="matchingRule" label="命中规则" width="180" />
@@ -116,10 +125,13 @@
           <el-tag :type="getStatusType(row.status)">{{ row.status }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="150" fixed="right">
+      <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="handleContact(row)">
             {{ getActionText(row.status) }}
+          </el-button>
+          <el-button link type="danger" @click="handleDelete(row)">
+            删除
           </el-button>
         </template>
       </el-table-column>
@@ -148,7 +160,9 @@ import {
   getStatistics,
   batchCall,
   batchSendSms,
-  updateLeadStatus
+  updateLeadStatus,
+  deleteHighPotentialLead,
+  batchDeleteHighPotentialLeads
 } from '../api/highPotential'
 
 const loading = ref(false)
@@ -270,6 +284,43 @@ const handleContact = async (row) => {
     loadData()
   } else {
     ElMessage.info('该线索已处理')
+  }
+}
+
+const handleDelete = async (row) => {
+  try {
+    await ElMessageBox.confirm('确定要删除这条高潜线索吗？', '提示', {
+      type: 'warning'
+    })
+    await deleteHighPotentialLead(row.id)
+    ElMessage.success('删除成功')
+    loadData()
+    loadStatistics()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('删除失败')
+    }
+  }
+}
+
+const handleBatchDelete = async () => {
+  if (selectedIds.value.length === 0) {
+    ElMessage.warning('请选择要删除的线索')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(`确定要删除选中的 ${selectedIds.value.length} 条高潜线索吗？`, '提示', {
+      type: 'warning'
+    })
+    await batchDeleteHighPotentialLeads(selectedIds.value)
+    ElMessage.success('删除成功')
+    selectedIds.value = []
+    loadData()
+    loadStatistics()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('删除失败')
+    }
   }
 }
 

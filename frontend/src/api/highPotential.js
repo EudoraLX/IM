@@ -39,3 +39,18 @@ export const updateLeadStatus = (id, status) => {
   })
 }
 
+export const deleteHighPotentialLead = (id) => {
+  return request({
+    url: `/highPotential/${id}`,
+    method: 'delete'
+  })
+}
+
+export const batchDeleteHighPotentialLeads = (ids) => {
+  return request({
+    url: '/highPotential/batchDelete',
+    method: 'post',
+    data: ids
+  })
+}
+

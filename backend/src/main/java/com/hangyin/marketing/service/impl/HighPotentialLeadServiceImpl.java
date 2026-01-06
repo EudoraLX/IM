@@ -96,5 +96,19 @@ public class HighPotentialLeadServiceImpl implements HighPotentialLeadService {
         lead.setUpdateTime(LocalDateTime.now());
         highPotentialLeadMapper.updateById(lead);
     }
+    
+    @Override
+    @Transactional
+    public void deleteHighPotentialLead(Long id) {
+        highPotentialLeadMapper.deleteById(id);
+    }
+    
+    @Override
+    @Transactional
+    public void batchDeleteHighPotentialLeads(List<Long> ids) {
+        if (ids != null && !ids.isEmpty()) {
+            highPotentialLeadMapper.deleteBatchIds(ids);
+        }
+    }
 }
 
