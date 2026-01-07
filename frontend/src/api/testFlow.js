@@ -7,6 +7,14 @@ export const getFlowStatus = () => {
   })
 }
 
+export const getFlowPreview = (leadCount = 20) => {
+  return request({
+    url: '/testFlow/preview',
+    method: 'get',
+    params: { leadCount }
+  })
+}
+
 export const executeFullFlow = (leadCount = 20) => {
   return request({
     url: '/testFlow/execute',

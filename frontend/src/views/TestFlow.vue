@@ -202,6 +202,34 @@
       </div>
     </el-card>
 
+    <!-- 测试步骤预览 -->
+    <el-card v-if="previewSteps && previewSteps.length > 0" class="steps-card" shadow="hover">
+      <template #header>
+        <div class="card-header">
+          <el-icon><Document /></el-icon>
+          <span>测试步骤预览</span>
+        </div>
+      </template>
+      <el-timeline>
+        <el-timeline-item
+          v-for="step in previewSteps"
+          :key="step.stepNumber"
+          :timestamp="step.moduleName"
+          :type="getStepType(step.status)"
+          placement="top"
+        >
+          <el-card>
+            <h4>{{ step.stepName }}</h4>
+            <div class="step-message" v-if="step.message">
+              <pre v-if="step.stepNumber === 4 || step.stepNumber === 5" class="code-block">{{ formatCodeMessage(step.message) }}</pre>
+              <p v-else>{{ step.message }}</p>
+            </div>
+            <p v-else>待执行</p>
+          </el-card>
+        </el-timeline-item>
+      </el-timeline>
+    </el-card>
+
     <!-- 执行步骤详情 -->
     <el-card v-if="executionResult && executionResult.steps" class="steps-card" shadow="hover">
       <template #header>
@@ -220,7 +248,11 @@
         >
           <el-card>
             <h4>{{ step.stepName }}</h4>
-            <p>{{ step.message || '执行中...' }}</p>
+            <div class="step-message" v-if="step.message">
+              <pre v-if="step.stepNumber === 4 || step.stepNumber === 5" class="code-block">{{ formatCodeMessage(step.message) }}</pre>
+              <p v-else>{{ step.message }}</p>
+            </div>
+            <p v-else>执行中...</p>
           </el-card>
         </el-timeline-item>
       </el-timeline>
@@ -231,6 +263,10 @@
       <el-button type="primary" size="large" @click="refreshStatus" :loading="loading">
         <el-icon><Refresh /></el-icon>
         刷新状态
+      </el-button>
+      <el-button type="warning" size="large" @click="loadPreviewSteps" :loading="previewLoading">
+        <el-icon><Document /></el-icon>
+        预览测试步骤
       </el-button>
       <el-button type="success" size="large" @click="executeFlow" :loading="executing">
         <el-icon><VideoPlay /></el-icon>
@@ -248,12 +284,14 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getFlowStatus, executeFullFlow } from '../api/testFlow'
+import { getFlowStatus, getFlowPreview, executeFullFlow } from '../api/testFlow'
 
 const router = useRouter()
 const loading = ref(false)
+const previewLoading = ref(false)
 const executing = ref(false)
 const currentStep = ref(0)
+const leadCount = ref(20)
 const flowStatus = ref({
   leadCount: 0,
   leadStatus: '未知',
@@ -264,6 +302,7 @@ const flowStatus = ref({
   highPotentialCount: 0,
   highPotentialStatus: '未知'
 })
+const previewSteps = ref([])
 const executionResult = ref(null)
 
 const refreshStatus = async () => {
@@ -281,15 +320,57 @@ const refreshStatus = async () => {
   }
 }
 
+const loadPreviewSteps = async () => {
+  previewLoading.value = true
+  try {
+    const res = await getFlowPreview(leadCount.value)
+    if (res.code === 200) {
+      previewSteps.value = res.data
+      ElMessage.success('测试步骤预览已加载')
+    } else {
+      ElMessage.error(res.message || '获取预览失败')
+    }
+  } catch (error) {
+    ElMessage.error('获取预览失败: ' + (error.message || '未知错误'))
+  } finally {
+    previewLoading.value = false
+  }
+}
+
 const executeFlow = async () => {
   try {
+    // 先获取步骤预览
+    let stepsPreview = previewSteps.value
+    if (!stepsPreview || stepsPreview.length === 0) {
+      try {
+        const previewRes = await getFlowPreview(leadCount.value)
+        if (previewRes.code === 200) {
+          stepsPreview = previewRes.data
+        }
+      } catch (error) {
+        // 如果获取预览失败，继续执行
+      }
+    }
+    
+    // 构建确认消息
+    let confirmMessage = '将执行完整测试流程，包括以下步骤：\n\n'
+    if (stepsPreview && stepsPreview.length > 0) {
+      stepsPreview.forEach((step, index) => {
+        confirmMessage += `${step.stepNumber}. ${step.stepName}（${step.moduleName}）\n   ${step.message}\n\n`
+      })
+    } else {
+      confirmMessage += '1. 创建测试线索\n2. 配置监控指标\n3. 配置推送频率\n4. 执行数据加工\n5. 准备营销数据\n\n'
+    }
+    confirmMessage += '是否继续执行？'
+    
     await ElMessageBox.confirm(
-      '将执行完整测试流程，包括：\n1. 创建测试线索\n2. 配置监控指标\n3. 配置推送频率\n4. 执行数据加工\n5. 准备营销数据\n\n是否继续？',
+      confirmMessage,
       '执行完整流程',
       {
         type: 'info',
-        confirmButtonText: '确定',
-        cancelButtonText: '取消'
+        confirmButtonText: '确定执行',
+        cancelButtonText: '取消',
+        dangerouslyUseHTMLString: false
       }
     )
     
@@ -307,12 +388,13 @@ const executeFlow = async () => {
     }, 500)
     
     try {
-      const res = await executeFullFlow(20)
+      const res = await executeFullFlow(leadCount.value)
       clearInterval(stepInterval)
       currentStep.value = 6
       
       if (res.code === 200) {
         executionResult.value = res.data
+        previewSteps.value = [] // 清空预览，显示执行结果
         ElMessage.success(res.data.message || '流程执行成功！')
         // 刷新状态
         await refreshStatus()
@@ -341,6 +423,12 @@ const getStepType = (status) => {
   if (status === '执行中') return 'warning'
   if (status === '失败') return 'danger'
   return 'primary'
+}
+
+const formatCodeMessage = (message) => {
+  if (!message) return ''
+  // 移除代码块标记，只保留代码内容
+  return message.replace(/```java\n/g, '').replace(/```\n?/g, '').trim()
 }
 
 onMounted(() => {
@@ -507,6 +595,38 @@ onMounted(() => {
   .status-cards {
     grid-template-columns: 1fr;
   }
+}
+
+.step-message {
+  margin-top: 10px;
+}
+
+.step-message pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #606266;
+  background: #f5f7fa;
+  padding: 12px;
+  border-radius: 4px;
+  border-left: 3px solid #409eff;
+  margin: 0;
+}
+
+.step-message pre.code-block {
+  background: #282c34;
+  color: #abb2bf;
+  border-left: 3px solid #61afef;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  overflow-x: auto;
+}
+
+.step-message p {
+  margin: 0;
+  line-height: 1.6;
+  color: #606266;
 }
 </style>
 
