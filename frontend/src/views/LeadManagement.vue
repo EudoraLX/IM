@@ -68,6 +68,14 @@
           <el-tag :type="getStatusType(row.status)">{{ row.status }}</el-tag>
         </template>
       </el-table-column>
+      <el-table-column label="高潜标记" width="100" align="center">
+        <template #default="{ row }">
+          <el-tag v-if="row.isHighPotential === 1" type="warning" size="small">
+            已转高潜
+          </el-tag>
+          <span v-else style="color: #999;">-</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="createTime" label="创建时间" width="180" />
       <el-table-column label="操作" width="180" fixed="right">
         <template #default="{ row }">
@@ -167,6 +175,12 @@
         <el-descriptions-item label="来源渠道">{{ viewData.sourceChannel || '-' }}</el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="getStatusType(viewData.status)">{{ viewData.status || '-' }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="高潜标记">
+          <el-tag v-if="viewData.isHighPotential === 1" type="warning" size="small">
+            已转高潜
+          </el-tag>
+          <span v-else>否</span>
         </el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ formatDateTime(viewData.createTime) }}</el-descriptions-item>
         <el-descriptions-item label="更新时间" :span="2">{{ formatDateTime(viewData.updateTime) }}</el-descriptions-item>

@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS `lead` (
     `id_card_hash` VARCHAR(64) COMMENT '身份证号哈希值',
     `source_channel` VARCHAR(50) COMMENT '来源渠道',
     `status` VARCHAR(20) DEFAULT '新线索' COMMENT '状态：新线索、跟进中、已转化、已失效',
+    `is_high_potential` TINYINT(1) DEFAULT 0 COMMENT '是否已转换为高潜线索：0-否，1-是',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     `deleted` TINYINT(1) DEFAULT 0 COMMENT '是否删除：0-未删除，1-已删除',

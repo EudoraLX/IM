@@ -95,6 +95,12 @@ public class DataProcessingServiceImpl implements DataProcessingService {
                 // 创建高潜线索记录
                 HighPotentialLead highPotentialLead = createHighPotentialLead(lead, config);
                 highPotentialLeadMapper.insert(highPotentialLead);
+                
+                // 更新线索表，标记已转换为高潜线索
+                lead.setIsHighPotential(1);
+                lead.setUpdateTime(LocalDateTime.now());
+                leadMapper.updateById(lead);
+                
                 highPotentialCount++;
                 log.debug("筛选出高潜线索: leadId={}, customerName={}", lead.getId(), lead.getCustomerName());
             }
@@ -150,6 +156,12 @@ public class DataProcessingServiceImpl implements DataProcessingService {
                     if (highPotentialLeadMapper.selectCount(wrapper) == 0) {
                         HighPotentialLead highPotentialLead = createHighPotentialLead(lead, config);
                         highPotentialLeadMapper.insert(highPotentialLead);
+                        
+                        // 更新线索表，标记已转换为高潜线索
+                        lead.setIsHighPotential(1);
+                        lead.setUpdateTime(LocalDateTime.now());
+                        leadMapper.updateById(lead);
+                        
                         count++;
                     }
                 }

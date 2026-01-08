@@ -46,6 +46,11 @@ public class Lead {
     private String status;
     
     /**
+     * 是否已转换为高潜线索：0-否，1-是
+     */
+    private Integer isHighPotential;
+    
+    /**
      * 创建时间
      */
     private LocalDateTime createTime;
