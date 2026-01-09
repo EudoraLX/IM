@@ -437,11 +437,11 @@ const initChart = () => {
       top: 10
     },
     grid: {
-      left: '50px',
+      left: '70px', // 增加左边距，确保Y轴名称完整显示
       right: '30px',
       bottom: '50px',
       top: '60px',
-      containLabel: false
+      containLabel: true // 改为true，确保标签不被裁剪
     },
     xAxis: {
       type: 'category',
@@ -463,12 +463,16 @@ const initChart = () => {
       type: 'value',
       name: '线索数量',
       nameLocation: 'middle',
-      nameGap: 40,
+      nameGap: 50, // 增加名称与轴线的距离
+      nameTextStyle: {
+        padding: [0, 0, 0, 0] // 确保文字不被裁剪
+      },
       min: 0,
       max: 10,
       interval: 2,
       axisLabel: {
-        show: true
+        show: true,
+        margin: 8 // 增加标签与轴线的距离
       },
       axisLine: {
         show: true
@@ -545,13 +549,14 @@ const loadChartData = async () => {
       const data = res.data
       const dates = data.dates || []
       const leadCounts = data.leadCounts || []
+      const highPotentialCounts = data.highPotentialCounts || [] // 每天新增的高潜线索数
       
-      console.log('图表数据:', { dates, leadCounts })
+      console.log('图表数据:', { dates, leadCounts, highPotentialCounts })
       
       // 更新统计数据
       statistics.value = {
         totalLeads: data.totalLeads || 0,
-        estimatedHighPotential: data.estimatedHighPotential || 0
+        estimatedHighPotential: data.estimatedHighPotential || 0 // 总高潜线索数
       }
       
       // 如果日期为空，使用默认日期
@@ -573,12 +578,14 @@ const loadChartData = async () => {
         ? leadCounts 
         : new Array(finalDates.length).fill(0)
       
-      // 计算预估高潜线索数（基于阈值）
-      const threshold = data.activityThreshold || 3
-      const estimatedHighPotential = finalLeadCounts.map(count => {
-        // 简化估算：假设活跃次数超过阈值的线索占比为30%
-        return Math.round(count * 0.3)
-      })
+      // 使用后端返回的每天新增高潜线索数，如果后端没有返回则使用估算
+      const finalHighPotentialCounts = highPotentialCounts.length === finalDates.length
+        ? highPotentialCounts
+        : finalLeadCounts.map(count => {
+            // 如果后端没有返回，使用估算：假设活跃次数超过阈值的线索占比为30%
+            const threshold = data.activityThreshold || 3
+            return Math.round(count * 0.3)
+          })
       
       // 更新图表
       chartInstance.setOption({
@@ -592,22 +599,30 @@ const loadChartData = async () => {
           },
           {
             name: '预估高潜线索数',
-            data: estimatedHighPotential
+            data: finalHighPotentialCounts
           }
         ]
       }, { notMerge: false })
       
       // 自动调整Y轴最大值
-      const allValues = [...finalLeadCounts, ...estimatedHighPotential]
+      const allValues = [...finalLeadCounts, ...finalHighPotentialCounts]
       const maxValue = allValues.length > 0 ? Math.max(...allValues) : 0
       const yMax = maxValue > 0 ? Math.max(10, Math.ceil(maxValue * 1.2)) : 10
       const interval = Math.max(1, Math.ceil(yMax / 5))
       
       chartInstance.setOption({
+        grid: {
+          left: '70px' // 确保左边距足够，Y轴名称完整显示
+        },
         yAxis: {
           max: yMax,
           interval: interval,
-          min: 0
+          min: 0,
+          name: '线索数量',
+          nameGap: 50,
+          nameTextStyle: {
+            padding: [0, 0, 0, 0]
+          }
         }
       })
       

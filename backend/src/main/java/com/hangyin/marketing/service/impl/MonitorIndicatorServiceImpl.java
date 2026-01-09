@@ -1,7 +1,9 @@
 package com.hangyin.marketing.service.impl;
 
+import com.hangyin.marketing.entity.HighPotentialLead;
 import com.hangyin.marketing.entity.Lead;
 import com.hangyin.marketing.entity.MonitorIndicator;
+import com.hangyin.marketing.mapper.HighPotentialLeadMapper;
 import com.hangyin.marketing.mapper.LeadMapper;
 import com.hangyin.marketing.mapper.MonitorIndicatorMapper;
 import com.hangyin.marketing.service.MonitorIndicatorService;
@@ -28,6 +30,9 @@ public class MonitorIndicatorServiceImpl implements MonitorIndicatorService {
     
     @Autowired
     private LeadMapper leadMapper;
+    
+    @Autowired(required = false)
+    private HighPotentialLeadMapper highPotentialLeadMapper;
     
     @Override
     public MonitorIndicator getActiveConfig() {
@@ -85,15 +90,13 @@ public class MonitorIndicatorServiceImpl implements MonitorIndicatorService {
             }
         }
         
-        // 统计最近7天每天的新增线索数（包括今天）
+        // 统计最近7天每天的新增线索数和新增高潜线索数（包括今天）
+        // 注意：图表显示的是每天新增的线索数，不受活跃机构过滤影响
+        List<Integer> highPotentialCounts = new ArrayList<>();
         for (int i = 6; i >= 0; i--) {
             LocalDateTime date = now.minusDays(i);
             String dateStr = date.format(formatter);
             dates.add(dateStr);
-            
-            // 查询该日期创建的线索数
-            QueryWrapper<Lead> wrapper = new QueryWrapper<>();
-            wrapper.eq("deleted", 0);
             
             // 计算该日期的开始和结束时间
             LocalDateTime dayStart = date.toLocalDate().atStartOfDay();
@@ -108,34 +111,48 @@ public class MonitorIndicatorServiceImpl implements MonitorIndicatorService {
                 dayEnd = date.toLocalDate().plusDays(1).atStartOfDay();
             }
             
+            // 查询该日期创建的新增线索数（统计所有线索，不受活跃机构过滤）
+            QueryWrapper<Lead> wrapper = new QueryWrapper<>();
+            wrapper.eq("deleted", 0);
             wrapper.ge("create_time", dayStart);
-            wrapper.le("create_time", dayEnd);
-            
-            // 如果配置了活跃机构，只统计匹配机构的线索
-            if (!activeOrganizations.isEmpty()) {
-                wrapper.in("source_channel", activeOrganizations);
-            }
-            
+            wrapper.lt("create_time", dayEnd);
             Long count = leadMapper.selectCount(wrapper);
             leadCounts.add(count.intValue());
+            
+            // 查询该日期新增的高潜线索数
+            int highPotentialCount = 0;
+            if (highPotentialLeadMapper != null) {
+                QueryWrapper<HighPotentialLead> hplWrapper = new QueryWrapper<>();
+                hplWrapper.ge("create_time", dayStart);
+                hplWrapper.lt("create_time", dayEnd);
+                Long hplCount = highPotentialLeadMapper.selectCount(hplWrapper);
+                highPotentialCount = hplCount != null ? hplCount.intValue() : 0;
+            }
+            highPotentialCounts.add(highPotentialCount);
         }
         
-        // 统计总线索数
+        // 统计总线索数（所有未删除的线索，不受活跃机构过滤）
         QueryWrapper<Lead> totalWrapper = new QueryWrapper<>();
         totalWrapper.eq("deleted", 0);
-        if (!activeOrganizations.isEmpty()) {
-            totalWrapper.in("source_channel", activeOrganizations);
-        }
+        // 不按活跃机构过滤，统计所有线索
         Long totalLeads = leadMapper.selectCount(totalWrapper);
         
-        // 估算高潜线索数（基于活跃阈值）
-        // 简化计算：假设活跃次数超过阈值的线索占比为30%
-        int estimatedHighPotential = (int) (totalLeads * 0.3);
+        // 获取实际的高潜线索数（从高潜线索表统计）
+        Long estimatedHighPotential = 0L;
+        if (highPotentialLeadMapper != null) {
+            QueryWrapper<HighPotentialLead> hplWrapper = new QueryWrapper<>();
+            estimatedHighPotential = highPotentialLeadMapper.selectCount(hplWrapper);
+        } else {
+            // 如果没有高潜线索Mapper，使用估算（基于活跃阈值）
+            // 简化计算：假设活跃次数超过阈值的线索占比为30%
+            estimatedHighPotential = (long) (totalLeads * 0.3);
+        }
         
         result.put("dates", dates);
         result.put("leadCounts", leadCounts);
+        result.put("highPotentialCounts", highPotentialCounts); // 每天新增的高潜线索数
         result.put("totalLeads", totalLeads);
-        result.put("estimatedHighPotential", estimatedHighPotential);
+        result.put("estimatedHighPotential", estimatedHighPotential); // 总高潜线索数
         result.put("timeRangeDays", config.getTimeRangeDays());
         result.put("activityThreshold", config.getActivityThreshold());
         
