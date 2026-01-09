@@ -78,6 +78,22 @@ CREATE TABLE IF NOT EXISTS `high_potential_lead` (
 INSERT INTO `monitor_indicator` (`time_range_days`, `active_organizations`, `activity_threshold`, `status`) 
 VALUES (7, '["华东中心机构", "上海研发分部"]', 3, 1);
 
+-- 活跃次数记录表
+CREATE TABLE IF NOT EXISTS `activity_record` (
+    `id` BIGINT(20) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `lead_no` VARCHAR(50) NOT NULL COMMENT '线索编号',
+    `lead_id` BIGINT(20) COMMENT '线索ID（冗余字段，用于快速查询）',
+    `activity_type` VARCHAR(50) DEFAULT '测试' COMMENT '活跃类型：测试、人脸验证、OCR验证、登录等',
+    `organization` VARCHAR(100) COMMENT '活跃机构',
+    `activity_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '活跃时间',
+    `remark` VARCHAR(500) COMMENT '备注',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_lead_no` (`lead_no`),
+    KEY `idx_lead_id` (`lead_id`),
+    KEY `idx_activity_time` (`activity_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='活跃次数记录表';
+
 -- 插入默认推送频率配置（冷启动）
 INSERT INTO `push_frequency` (`frequency_type`, `push_interval`, `weekend_rule`, `min_push_threshold`, `status`) 
 VALUES ('daily', 15, 1, 30, 1);

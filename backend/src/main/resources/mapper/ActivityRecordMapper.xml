@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hangyin.marketing.mapper.ActivityRecordMapper">
+
+    <select id="countByLeadNoAndTimeRange" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM `activity_record`
+        WHERE `lead_no` = #{leadNo}
+        AND `activity_time` >= #{startTime}
+        AND `activity_time` &lt;= #{endTime}
+        <if test="organizations != null and organizations.size() > 0">
+            AND `organization` IN
+            <foreach collection="organizations" item="org" open="(" separator="," close=")">
+                #{org}
+            </foreach>
+        </if>
+    </select>
+
+    <select id="countByLeadIdAndTimeRange" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM `activity_record`
+        WHERE `lead_id` = #{leadId}
+        AND `activity_time` >= #{startTime}
+        AND `activity_time` &lt;= #{endTime}
+        <if test="organizations != null and organizations.size() > 0">
+            -- 如果配置了活跃机构，只计算：1) organization为空/null的记录 2) organization在列表中的记录
+            AND (`organization` IS NULL OR `organization` = '' OR `organization` IN
+            <foreach collection="organizations" item="org" open="(" separator="," close=")">
+                #{org}
+            </foreach>
+            )
+        </if>
+    </select>
+
+    <select id="selectByLeadNo" resultType="com.hangyin.marketing.entity.ActivityRecord">
+        SELECT * FROM `activity_record`
+        WHERE `lead_no` = #{leadNo}
+        ORDER BY `activity_time` DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countByLeadNo" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM `activity_record`
+        WHERE `lead_no` = #{leadNo}
+    </select>
+
+</mapper>
+

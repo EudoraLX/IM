@@ -22,6 +22,11 @@ public interface LeadService {
     Lead getLeadById(Long id);
     
     /**
+     * 根据线索编号查询线索
+     */
+    Lead getLeadByLeadNo(String leadNo);
+    
+    /**
      * 新增线索
      */
     void addLead(Lead lead);

@@ -19,7 +19,8 @@ request.interceptors.request.use(
 request.interceptors.response.use(
   response => {
     const res = response.data
-    if (res.code === 200) {
+    // 对于业务错误（如404未找到），也返回响应，让业务层处理
+    if (res.code === 200 || res.code === 404) {
       return res
     } else {
       return Promise.reject(new Error(res.message || '请求失败'))

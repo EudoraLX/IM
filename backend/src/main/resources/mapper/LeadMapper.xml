@@ -8,7 +8,8 @@
         WHERE deleted = 0
         <if test="keyword != null and keyword != ''">
             AND (customer_name LIKE CONCAT('%', #{keyword}, '%')
-            OR contact_phone LIKE CONCAT('%', #{keyword}, '%'))
+            OR contact_phone LIKE CONCAT('%', #{keyword}, '%')
+            OR lead_no LIKE CONCAT('%', #{keyword}, '%'))
         </if>
         <if test="status != null and status != ''">
             AND status = #{status}
@@ -22,11 +23,19 @@
         WHERE deleted = 0
         <if test="keyword != null and keyword != ''">
             AND (customer_name LIKE CONCAT('%', #{keyword}, '%')
-            OR contact_phone LIKE CONCAT('%', #{keyword}, '%'))
+            OR contact_phone LIKE CONCAT('%', #{keyword}, '%')
+            OR lead_no LIKE CONCAT('%', #{keyword}, '%'))
         </if>
         <if test="status != null and status != ''">
             AND status = #{status}
         </if>
+    </select>
+
+    <!-- 根据线索编号查询线索 -->
+    <select id="selectByLeadNo" resultType="com.hangyin.marketing.entity.Lead">
+        SELECT * FROM `lead`
+        WHERE deleted = 0 AND lead_no = #{leadNo}
+        LIMIT 1
     </select>
 
     <!-- 物理删除 -->

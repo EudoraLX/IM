@@ -85,6 +85,10 @@
 
     <div class="action-buttons">
       <el-button @click="handleCancel">取消配置</el-button>
+      <el-button type="success" @click="handleRefreshMonitor" :loading="refreshing">
+        <el-icon><Refresh /></el-icon>
+        刷新监控
+      </el-button>
       <el-button type="primary" @click="handleSave">提交保存</el-button>
     </div>
 
@@ -158,7 +162,7 @@
 <script setup>
 import { ref, reactive, onMounted, watch, nextTick, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getMonitorConfig, saveMonitorConfig, getMonitorStatistics, getOrganizations } from '../api/monitor'
+import { getMonitorConfig, saveMonitorConfig, getMonitorStatistics, getOrganizations, refreshMonitor } from '../api/monitor'
 import * as echarts from 'echarts'
 import { onBeforeUnmount } from 'vue'
 
@@ -175,6 +179,8 @@ const statistics = ref({
   totalLeads: 0,
   estimatedHighPotential: 0
 })
+
+const refreshing = ref(false)
 
 const organizationOptions = ref([
   { label: '华东中心机构', value: '华东中心机构' },
@@ -630,6 +636,48 @@ const handleSave = async () => {
     ElMessage.success('保存成功')
   } catch (error) {
     ElMessage.error('保存失败')
+  }
+}
+
+const handleRefreshMonitor = async () => {
+  try {
+    await ElMessageBox.confirm(
+      '刷新监控将重新执行数据加工，根据当前配置筛选高潜线索。是否继续？',
+      '刷新监控',
+      {
+        type: 'info',
+        confirmButtonText: '确定',
+        cancelButtonText: '取消'
+      }
+    )
+    
+    refreshing.value = true
+    const loadingMessage = ElMessage({
+      message: '正在刷新监控...',
+      type: 'info',
+      duration: 0
+    })
+    
+    try {
+      const res = await refreshMonitor()
+      loadingMessage.close()
+      if (res.code === 200) {
+        ElMessage.success(res.message || `刷新完成，筛选出 ${res.data || 0} 条高潜线索`)
+        // 刷新图表数据
+        await loadChartData()
+      } else {
+        ElMessage.error(res.message || '刷新失败')
+      }
+    } catch (error) {
+      loadingMessage.close()
+      throw error
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('刷新监控失败: ' + (error.message || '未知错误'))
+    }
+  } finally {
+    refreshing.value = false
   }
 }
 </script>

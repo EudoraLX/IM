@@ -15,6 +15,13 @@ export const getLeadById = (id) => {
   })
 }
 
+export const getLeadByLeadNo = (leadNo) => {
+  return request({
+    url: `/lead/byLeadNo/${leadNo}`,
+    method: 'get'
+  })
+}
+
 export const addLead = (data) => {
   return request({
     url: '/lead/add',

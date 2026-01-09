@@ -27,6 +27,11 @@ public interface LeadMapper extends BaseMapper<Lead> {
                     @Param("status") String status);
     
     /**
+     * 根据线索编号查询线索
+     */
+    Lead selectByLeadNo(@Param("leadNo") String leadNo);
+    
+    /**
      * 物理删除线索（真正从数据库删除）
      */
     void physicalDeleteById(@Param("id") Long id);

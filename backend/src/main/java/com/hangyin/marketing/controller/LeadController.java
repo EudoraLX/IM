@@ -49,6 +49,18 @@ public class LeadController {
     }
     
     /**
+     * 根据线索编号查询线索
+     */
+    @GetMapping("/byLeadNo/{leadNo}")
+    public Result<Lead> getLeadByLeadNo(@PathVariable String leadNo) {
+        Lead lead = leadService.getLeadByLeadNo(leadNo);
+        if (lead == null) {
+            return Result.error(404, "未找到该线索编号");
+        }
+        return Result.success(lead);
+    }
+    
+    /**
      * 新增线索
      */
     @PostMapping("/add")

@@ -33,6 +33,10 @@
           <el-icon><Connection /></el-icon>
           <span>完整测试流程</span>
         </el-menu-item>
+        <el-menu-item index="/activityRecord">
+          <el-icon><Document /></el-icon>
+          <span>活跃次数记录</span>
+        </el-menu-item>
       </el-menu>
       <div class="sidebar-footer">
         <p>v2.5.11 2025.12.23更新</p>

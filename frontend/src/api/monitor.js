@@ -29,3 +29,10 @@ export const getOrganizations = () => {
   })
 }
 
+export const refreshMonitor = () => {
+  return request({
+    url: '/dataProcessing/process',
+    method: 'post'
+  })
+}
+

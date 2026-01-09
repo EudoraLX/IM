@@ -46,6 +46,11 @@ public class LeadServiceImpl implements LeadService {
     }
     
     @Override
+    public Lead getLeadByLeadNo(String leadNo) {
+        return leadMapper.selectByLeadNo(leadNo);
+    }
+    
+    @Override
     @Transactional
     public void addLead(Lead lead) {
         // 生成线索编号

@@ -1,5 +1,6 @@
 package com.hangyin.marketing.service.impl;
 
+import com.hangyin.marketing.mapper.ActivityRecordMapper;
 import com.hangyin.marketing.service.ActivityDataService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +27,9 @@ public class ActivityDataServiceImpl implements ActivityDataService {
     @Autowired(required = false)
     private RestTemplate restTemplate;
     
+    @Autowired
+    private ActivityRecordMapper activityRecordMapper;
+    
     /**
      * 第三方数据源API地址
      * 可在 application.yml 中配置
@@ -35,13 +39,36 @@ public class ActivityDataServiceImpl implements ActivityDataService {
     
     /**
      * 是否启用第三方数据源
-     * 如果为false，使用模拟数据
+     * 如果为false，优先使用数据库记录，再使用模拟数据
      */
     @Value("${activity.data.enabled:false}")
     private boolean activityDataEnabled;
     
+    /**
+     * 是否优先使用数据库记录
+     * 如果为true，优先从数据库读取活跃次数记录
+     */
+    @Value("${activity.data.use-database:true}")
+    private boolean useDatabase;
+    
     @Override
     public int getActivityCount(Long leadId, LocalDateTime startTime, LocalDateTime endTime, List<String> organizations) {
+        // 优先从数据库读取活跃次数记录
+        if (useDatabase) {
+            try {
+                // 如果 organizations 为空，传入 null，不过滤机构
+                List<String> orgFilter = (organizations != null && !organizations.isEmpty()) ? organizations : null;
+                int count = activityRecordMapper.countByLeadIdAndTimeRange(leadId, startTime, endTime, orgFilter);
+                log.info("从数据库获取活跃次数: leadId={}, startTime={}, endTime={}, count={}, organizations={}, useDatabase={}", 
+                        leadId, startTime, endTime, count, organizations, useDatabase);
+                return count;
+            } catch (Exception e) {
+                log.error("从数据库获取活跃次数失败，leadId: {}, startTime: {}, endTime: {}, organizations: {}", 
+                        leadId, startTime, endTime, organizations, e);
+                // 如果数据库查询失败，继续尝试其他方式
+            }
+        }
+        
         if (!activityDataEnabled) {
             // 如果未启用第三方数据源，返回模拟数据
             log.debug("第三方数据源未启用，使用模拟数据，leadId: {}", leadId);

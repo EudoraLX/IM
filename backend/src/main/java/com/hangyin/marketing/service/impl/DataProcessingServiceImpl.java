@@ -83,10 +83,12 @@ public class DataProcessingServiceImpl implements DataProcessingService {
         for (HighPotentialLead hpl : existingLeads) {
             existingLeadIds.add(hpl.getLeadId());
         }
+        log.info("已存在的高潜线索数量: {}", existingLeadIds.size());
         
         for (Lead lead : allLeads) {
             // 跳过已存在的高潜线索
             if (existingLeadIds.contains(lead.getId())) {
+                log.debug("跳过已存在的高潜线索: leadId={}, leadNo={}", lead.getId(), lead.getLeadNo());
                 continue;
             }
             
@@ -102,7 +104,8 @@ public class DataProcessingServiceImpl implements DataProcessingService {
                 leadMapper.updateById(lead);
                 
                 highPotentialCount++;
-                log.debug("筛选出高潜线索: leadId={}, customerName={}", lead.getId(), lead.getCustomerName());
+                log.info("筛选出高潜线索: leadId={}, leadNo={}, customerName={}, matchingRule={}", 
+                        lead.getId(), lead.getLeadNo(), lead.getCustomerName(), highPotentialLead.getMatchingRule());
             }
         }
         
@@ -182,20 +185,26 @@ public class DataProcessingServiceImpl implements DataProcessingService {
         List<String> orgList = new ArrayList<>(activeOrganizations);
         
         // 规则1：获取活跃次数（核心判断）
+        // 注意：活跃次数统计不受机构过滤影响，统计所有活跃记录
         int activityCount = 0;
         if (activityDataService != null) {
-            // 调用活跃度数据服务获取实际活跃次数
-            activityCount = activityDataService.getActivityCount(lead.getId(), startTime, endTime, orgList);
-            log.debug("线索 {} 在时间范围内活跃次数: {}", lead.getId(), activityCount);
+            // 调用活跃度数据服务获取实际活跃次数，不传入机构列表（传入null不过滤机构）
+            activityCount = activityDataService.getActivityCount(lead.getId(), startTime, endTime, null);
+            log.info("线索 {} (leadNo: {}) 在时间范围内 [{}, {}] 活跃次数: {}, 阈值: {}", 
+                    lead.getId(), lead.getLeadNo(), startTime, endTime, activityCount, activityThreshold);
         } else {
             // 如果没有配置活跃度数据服务，使用简化判断
-            log.debug("活跃度数据服务未配置，使用简化判断规则");
+            log.warn("活跃度数据服务未配置，线索 {} 无法获取活跃次数", lead.getId());
         }
         
         // 判断1：活跃次数是否超过阈值（最核心的判断）
         if (activityCount >= activityThreshold) {
-            log.debug("线索 {} 活跃次数 {} >= 阈值 {}，判定为高潜线索", lead.getId(), activityCount, activityThreshold);
+            log.info("线索 {} (leadNo: {}) 活跃次数 {} >= 阈值 {}，判定为高潜线索", 
+                    lead.getId(), lead.getLeadNo(), activityCount, activityThreshold);
             return true;
+        } else {
+            log.debug("线索 {} (leadNo: {}) 活跃次数 {} < 阈值 {}，不满足高潜条件", 
+                    lead.getId(), lead.getLeadNo(), activityCount, activityThreshold);
         }
         
         // 判断2：活跃机构匹配
@@ -207,14 +216,7 @@ public class DataProcessingServiceImpl implements DataProcessingService {
             }
         }
         
-        // 判断3：新线索且创建时间在监控范围内
-        if ("新线索".equals(lead.getStatus()) && 
-            lead.getCreateTime() != null && 
-            lead.getCreateTime().isAfter(startTime)) {
-            log.debug("线索 {} 是新线索且在监控范围内，判定为高潜线索", lead.getId());
-            return true;
-        }
-        
+        // 不再使用"新线索优先"规则，只基于活跃次数和活跃机构进行筛选
         return false;
     }
     
@@ -248,12 +250,12 @@ public class DataProcessingServiceImpl implements DataProcessingService {
      * 确定匹配规则
      */
     private String determineMatchingRule(Lead lead, MonitorIndicator config) {
-        // 检查活跃次数
+        // 检查活跃次数（不传入机构列表，统计所有活跃记录）
         if (activityDataService != null) {
             LocalDateTime now = LocalDateTime.now();
             LocalDateTime startTime = now.minusDays(config.getTimeRangeDays());
-            List<String> orgList = new ArrayList<>(parseOrganizations(config.getActiveOrganizations()));
-            int activityCount = activityDataService.getActivityCount(lead.getId(), startTime, now, orgList);
+            // 不传入机构列表，统计所有活跃记录
+            int activityCount = activityDataService.getActivityCount(lead.getId(), startTime, now, null);
             
             if (activityCount >= config.getActivityThreshold()) {
                 return "活跃次数达标（" + activityCount + "次）";
@@ -267,11 +269,7 @@ public class DataProcessingServiceImpl implements DataProcessingService {
             return "活跃机构命中（" + sourceChannel + "）";
         }
         
-        // 新线索
-        if ("新线索".equals(lead.getStatus())) {
-            return "新线索优先";
-        }
-        
+        // 如果都不满足，返回默认规则（实际不会到达这里，因为isHighPotentialLead已经过滤）
         return "其他规则命中";
     }
     

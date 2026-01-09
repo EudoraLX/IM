@@ -36,6 +36,12 @@ const routes = [
         name: 'TestFlow',
         component: () => import('../views/TestFlow.vue'),
         meta: { title: '完整测试流程' }
+      },
+      {
+        path: '/activityRecord',
+        name: 'ActivityRecord',
+        component: () => import('../views/ActivityRecord.vue'),
+        meta: { title: '活跃次数记录' }
       }
     ]
   }
